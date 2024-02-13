@@ -3,4 +3,4 @@
 # Makefile for the my drivers
 # Copyright (C) Steve Jeong <steve@how2flow.net>
 
-obj-$(CONFIG_MYDEV) +=
+obj-$(CONFIG_MYDEV) += my_char.o

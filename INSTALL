@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# SPDX-License-Identifier: GPL-2.0
+#
+# Copyright (C) Steve Jeong <steve@how2flow.net>
+
+ARCH=${ARCH:-$(dpkg-architecture -qDEB_HOST_MULTIARCH)}
+CONFIG=${CONFIG:-.config}
+LINUX=${CHECKOUT:-../..}
+
+echo "obj-\$(CONFIG_MYDEV) += mydriver/" >> ${LINUX}/drivers/Makefile
+sed -i -e 's,endmenu,source "drivers/mydriver/Kconfig"\n\nendmenu,g' ${LINUX}/drivers/Kconfig
+
+if [ ${CONFIG} = ".config" ]; then
+  echo "CONFIG_MYDEV=m" >> ${LINUX}/${CONFIG}
+else
+  echo "CONFIG_MYDEV=m" >> ${LINUX}/arch/${ARCH/armhf/arm}/configs/${CONFIG}
+fi

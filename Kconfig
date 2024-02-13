@@ -1,0 +1,13 @@
+#
+# my custom drivers configuration
+#
+
+menu "My devices"
+
+config MYDEV
+	tristate "My drivers support"
+	help
+	  It's for practice.
+          Usually, you set it up as a module, build it, and install it.
+
+endmenu

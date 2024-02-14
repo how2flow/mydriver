@@ -33,12 +33,16 @@ static int my_char_release(struct inode *inode, struct file *file)
 
 static ssize_t my_char_read(struct file *file, char __user *user_buffer, size_t count, loff_t *offset)
 {
+	ssize_t bytes_to_copy = min(count, (size_t)(sizeof(device_buffer) - *offset));
+
 	// device -> user
-	if (copy_to_user(user_buffer, device_buffer, count) != 0) {
+	if (copy_to_user(user_buffer, device_buffer + *offset, bytes_to_copy) != 0) {
 		return -EFAULT;
 	}
 
-	return count;
+	*offset += bytes_to_copy;
+
+	return bytes_to_copy;
 }
 
 static ssize_t my_char_write(struct file *file, const char __user *user_buffer, size_t count, loff_t *offset)

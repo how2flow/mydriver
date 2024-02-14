@@ -7,12 +7,14 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/cdev.h>
+#include <linux/device.h>
 
 #define DRIVER_NAME "my_char"
 #define NUM_DEVICES 1
 
 static dev_t device_num;
 static struct cdev cdev;
+static struct class *my_char_class;
 
 static int my_char_open(struct inode *inode, struct file *file)
 {
@@ -55,12 +57,28 @@ static int __init my_char_init(void)
 		return ret;
 	}
 
+	// create class
+	my_char_class = class_create(THIS_MODULE, DRIVER_NAME);
+	if (IS_ERR(my_char_class)) {
+		cdev_del(&cdev); // because it's after cdev_add
+		unregister_chrdev_region(device_num, NUM_DEVICES);
+		printk(KERN_ERR "Failed to create class\n");
+		return PTR_ERR(my_char_class);
+	}
+
+	// create device (create_class() -> device_create())
+	device_create(my_char_class, NULL, device_num, NULL, DRIVER_NAME);
+
 	printk(KERN_INFO "my_char driver initialized\n");
 	return 0;
 }
 
 static void __exit my_char_exit(void)
 {
+	// destroy device and class
+	device_destroy(my_char_class, device_num);
+	class_destroy(my_char_class);
+
 	// unregister character device (cdev_del() -> unregister_chrdev_region())
 	cdev_del(&cdev);
 	unregister_chrdev_region(device_num, NUM_DEVICES);

@@ -8,13 +8,16 @@
 #include <linux/init.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
+#include <linux/uaccess.h>
 
 #define DRIVER_NAME "my_char"
 #define NUM_DEVICES 1
+#define BUF_SIZE 1024
 
 static dev_t device_num;
 static struct cdev cdev;
 static struct class *my_char_class;
+static char device_buffer[BUF_SIZE];
 
 static int my_char_open(struct inode *inode, struct file *file)
 {
@@ -28,10 +31,32 @@ static int my_char_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static ssize_t my_char_read(struct file *file, char __user *user_buffer, size_t count, loff_t *offset)
+{
+	// device -> user
+	if (copy_to_user(user_buffer, device_buffer, count) != 0) {
+		return -EFAULT;
+	}
+
+	return count;
+}
+
+static ssize_t my_char_write(struct file *file, const char __user *user_buffer, size_t count, loff_t *offset)
+{
+	// user -> device
+	if (copy_from_user(device_buffer, user_buffer, count) != 0) {
+		return -EFAULT;
+	}
+
+	return count;
+}
+
 static struct file_operations my_char_fops = {
 	.owner = THIS_MODULE,
 	.open = my_char_open,
 	.release = my_char_release,
+	.read = my_char_read,
+	.write = my_char_write,
 };
 
 static int __init my_char_init(void)

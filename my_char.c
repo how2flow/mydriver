@@ -9,10 +9,15 @@
 #include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/uaccess.h>
+#include <linux/ioctl.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 
 #define DRIVER_NAME "my_char"
 #define NUM_DEVICES 1
 #define BUF_SIZE 1024
+#define IOCTL_WRITE _IOW('k', 1, char *)
+#define IOCTL_READ _IOR('k', 2, char *)
 
 static dev_t device_num;
 static struct cdev cdev;
@@ -55,12 +60,57 @@ static ssize_t my_char_write(struct file *file, const char __user *user_buffer, 
 	return count;
 }
 
+static long my_char_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	char *temp_buffer = NULL;
+	size_t len;
+
+	switch (cmd) {
+		case IOCTL_WRITE:
+			temp_buffer = kzalloc(BUF_SIZE, GFP_KERNEL);
+			if (!temp_buffer) {
+				return -ENOMEM;
+			}
+
+			if (copy_from_user(temp_buffer, (char *)arg, BUF_SIZE) != 0) {
+				return -EFAULT;
+			}
+
+			temp_buffer[BUF_SIZE - 1] = '\0';
+			strncpy(device_buffer, temp_buffer, BUF_SIZE);
+			printk(KERN_INFO "Received message from user space: %s\n", device_buffer);
+			break;
+		case IOCTL_READ:
+			temp_buffer = kzalloc(BUF_SIZE, GFP_KERNEL);
+			if (!temp_buffer) {
+				return -ENOMEM;
+			}
+
+			len = strlen(device_buffer);
+			if (copy_to_user((char *)arg, device_buffer, len + 1) != 0) {
+				return -EFAULT;
+			}
+
+			printk(KERN_INFO "Sent message to user space: %s\n", device_buffer);
+			break;
+		default:
+			return -ENOTTY; // command not recognized
+	}
+
+	// free dynamically allocated memory
+	if (temp_buffer)
+		kfree(temp_buffer);
+
+	return 0;
+}
+
 static struct file_operations my_char_fops = {
 	.owner = THIS_MODULE,
 	.open = my_char_open,
 	.release = my_char_release,
 	.read = my_char_read,
 	.write = my_char_write,
+	.unlocked_ioctl = my_char_ioctl,
 };
 
 static int __init my_char_init(void)

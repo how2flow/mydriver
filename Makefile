@@ -4,3 +4,4 @@
 # Copyright (C) Steve Jeong <steve@how2flow.net>
 
 obj-$(CONFIG_MYDEV) += my_char.o
+obj-$(CONFIG_MYDEV) += my_net.o

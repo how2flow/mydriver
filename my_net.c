@@ -4,8 +4,11 @@
  */
 
 #include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/skbuff.h>
 
 #define DRIVER_NAME "my_net"
 #define MAC_ADDR_LEN ETH_ALEN
@@ -28,9 +31,29 @@ static int my_net_stop(struct net_device *dev)
 	return 0;
 }
 
+static netdev_tx_t my_net_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	struct sk_buff *new_skb;
+
+	printk(KERN_INFO "Transmit\n");
+
+	new_skb = skb_copy(skb, GFP_ATOMIC);
+	if (!new_skb) {
+		printk(KERN_ERR "skb_copy failed\n");
+		return NETDEV_TX_OK;
+	}
+
+	netif_rx(new_skb);
+
+	dev_kfree_skb_any(skb);
+
+	return NETDEV_TX_OK;
+}
+
 static struct net_device_ops my_net_device_ops = {
 	.ndo_open = my_net_open,
 	.ndo_stop = my_net_stop,
+	.ndo_start_xmit = my_net_xmit,
 };
 
 static int __init my_net_init(void)
@@ -42,6 +65,9 @@ static int __init my_net_init(void)
 	}
 
 	my_net_device->netdev_ops = &my_net_device_ops;
+	my_net_device->type = ETH_P_LOOPBACK;
+	my_net_device->mtu = 1500;
+	my_net_device->flags |= IFF_LOOPBACK;
 
 	if (register_netdev(my_net_device)) {
 		printk(KERN_ERR "Failed to register net device\n");
